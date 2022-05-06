@@ -58,7 +58,7 @@ def toggle_solutions(question):
                         sol_block += l
                         
     except FileNotFoundError:
-        sol = 'Solutions not yet released!'
+        sol = 'Solutions .txt file not found!'
         out_format = {}
 
     # Define how to display/hide the solution

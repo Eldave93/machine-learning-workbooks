@@ -24,7 +24,7 @@ if __name__ == "__main__":
             print('Buttons created!')
         
     except FileNotFoundError:
-        print('Solutions not yet released!')
+        print('Solutions .txt file not found!')
 
 import sys
 sys.argv
