@@ -1,0 +1,282 @@
+###05_ex1_start_py
+output = "count"
+###05_ex1_end
+
+###05_ex2_start_md
+There are 11 features (`datetime`...`registered`).
+###05_ex2_end
+
+###05_ex3_start_md
+There are two variables we should remove if we want to predict `count`. This is `casual` and `registered`. These are sub-categories of the `count` which if we were to predict `count` in the future, we would not know!
+###05_ex3_switch_py
+bikes.drop(['casual', 'registered'], axis=1, inplace=True)
+###05_ex3_end
+
+###05_ex4_start_py
+output = "riders"
+
+bikes.rename(columns={'count':'riders', 'atemp': 'realfeel'}, inplace=True)
+
+display(bikes.head())
+###05_ex4_end
+
+###05_ex5a_start_md
+Because if this was "live" data from a database, we would have to do these changes each time we got a new set of data to run through our model.
+###05_ex5a_end
+
+###05_ex5b_start_py
+from sklearn.preprocessing import FunctionTransformer
+
+def data_prep(data):
+
+    data_ = data.copy()
+    data_.drop(['casual', 'registered'], axis=1, inplace=True)
+    data_.rename(columns={'count':'riders', 'atemp': 'realfeel'}, inplace=True)
+    data_['datetime'] = pd.to_datetime(data_['datetime'], format='%Y-%m-%d %H:%M:%S')
+    data_.set_index('datetime', inplace=True)
+    
+    return data_
+
+prepTransform = FunctionTransformer(data_prep, validate=False)
+
+bikes = prepTransform.fit_transform(pd.read_csv('./data/bikeshare.csv'))
+
+display(bikes.head())
+###05_ex5b_end
+
+###05_ex6_start_py
+import datetime 
+
+# have to minus an hour or it ends at midnight on the first day of October
+train_df = bikes.loc[:datetime.datetime.strptime("01-10-2012", "%d-%m-%Y") - datetime.timedelta(hours=1)]
+test_df = bikes.loc[datetime.datetime.strptime("01-10-2012", "%d-%m-%Y"):]
+
+display(train_df.tail())
+display(test_df.head())
+###05_ex6_switch_md
+This reaffirms that we have missing data here typically towards the end of the month.
+###05_ex6_end
+
+###05_ex7_start_py
+sns.scatterplot(data = explore_set, x='temp', y='riders', alpha=0.2)
+plt.title("Temperature vs. the number of bike riders")
+plt.show()
+###05_ex7_switch_md
+The temperature seems to have some relationship but is not a strong predictor of number of riders. This is probably (at least partly) because we have roughly a datapoint every hour and no one rides a bike at 2am even at lovely temperatures. So by itself temperature isn't a very strong predictor, but coupled with other information like time of day it might be!
+###05_ex7_end
+
+###05_ex8_start_py
+fig, axes = plt.subplots(figsize=(15,15), nrows=4, ncols=2, sharey=True)
+axes = axes.flatten()
+
+for i, feat in enumerate(explore_set.iloc[:,:-1]):
+    sns.scatterplot(data = explore_set, x=feat, y='riders', alpha=0.4, ax=axes[i])
+    
+plt.tight_layout()
+plt.show()
+###05_ex8_end
+
+###05_ex9_start_py
+explore_set_ = explore_set.drop(output, axis=1)
+sns.heatmap(explore_set_.corr(), annot=True, fmt='.2f', linewidths=2, vmin=-1, vmax=1)
+plt.title("Correlation Heatmap")
+plt.show()
+###05_ex9_switch_md
+`temp` and `realfeel` are highly correlated likely as they are basically measuring the same thing.
+###05_ex9_switch_py
+sns.scatterplot(data=train_df, x='temp', y='realfeel', alpha=0.2);
+###05_ex9_end
+
+###05_ex10_start_py
+from scipy import stats
+import numpy as np
+
+explore_set_na_rm = explore_set.dropna()
+for i, feature in enumerate(explore_set):
+    if not str(explore_set_na_rm[feature].dtypes) == "object":
+        corr = pd.DataFrame(stats.pearsonr(explore_set_na_rm[feature], explore_set_na_rm[output]), 
+                            index = ["cor", "p-value"],
+                            columns = [feature])
+        if i ==0:
+            all_corr = corr
+        else:
+            all_corr = pd.concat([all_corr, corr], axis = 1)
+        
+display(all_corr.round(3).sort_values(by="cor", axis=1))
+###05_ex10_switch_md
+As detailed above, either `realfeel` or `temp` should be selected as the strongest predictor of `riders`, but not both (as they correlate strongly with each other). `humidity` is the next strongest predictor of riders, and doesn't correlate with `temp` or `realfeel`, so using `realfeel` or `temp` and `humidity` together seems sensible.
+###05_ex10_end
+
+###05_ex11_start_py
+print("There are {} duplicated observations".format(train_df.duplicated().sum()))
+###05_ex11_switch_md
+By looking at the data it seems this could be due to measurement sensitivity or machine error, as typically the duplicates look to be sequentially after each other (e.g. `2011-01-01 01:00:00`, `2011-01-01 02:00:00`). Its unclear if the features were just the same the following hour so probably best to leave it for now without futher information.
+###05_ex11_end
+
+###05_ex12_start_py
+train_df.isnull().sum()
+###05_ex12_switch_md
+None of the columns have a null value so we do not need to deal with them.
+###05_ex12_end
+
+###05_ex13_start_py
+feature_names = list(train_df.columns)
+
+fig, axes = plt.subplots(figsize = (15,10), ncols=train_df.shape[-1]//2, nrows=2, sharex=True)
+axes = axes.flatten()
+
+for i, ax in enumerate(axes):
+    sns.boxplot(y=train_df.iloc[:,i], ax = ax) 
+    ax.set_title(feature_names[i])
+    ax.set_ylabel("")
+    
+plt.suptitle("Boxplots")
+plt.tight_layout()
+plt.show()
+###05_ex13_switch_md
+There are a few outliers in a few variables, but they are not large enough to cause much concern. We may have some issues with `holiday` but thats because there are so few 1's, so rather than being an outlier this is just a class imballance.
+###05_ex13_end
+
+###05_ex14_start_py
+lr_h = LinearRegression()
+lr_h.fit(X_train[["humidity"]], y_train)
+
+print(lr_h.coef_.round(2))
+print(lr_h.intercept_.round(2))
+###05_ex14_switch_md
+The models equation is $\mathrm{riders} = -2.59\times\mathrm{humidity} + 325.43$.
+###05_ex14_switch_py
+fig, axes = plt.subplots()
+
+sns.scatterplot(x=X_train['humidity'], y=y_train, alpha=0.2, ax=axes)
+axes.plot(X_train['humidity'], lr_h.predict(X_train[['humidity']]), color='red');
+###05_ex14_end
+
+###05_ex15_start_py
+lr_h.predict([[65]])
+###05_ex15_end
+
+###05_ex16_start_py
+from sklearn.dummy import DummyRegressor
+
+dummy = DummyRegressor()
+dummy.fit(X_train, y_train)
+
+print("Training Score")
+print(round(dummy.score(X_train, y_train), 3))
+print("Validation Score")
+print(round(dummy.score(X_val, y_val), 3))
+###05_ex16_switch_md
+The dummy model that just predicts the mean would have a $R^2$ of 0 on the training set. This because $R^2$ is effectively just measuring how good the model is compared to a horizontal line, and that is all the dummy model is doing here with the data mean.
+
+The validation score is a minus because, for this data, the mean of the training set is not as good a measure of the data variance as the mean of the validation set.
+###05_ex16_end
+
+###05_ex17_start_py
+r2 = r2_score(y_val, lr.predict(X_val[["realfeel"]])).round(2)
+rmse = (mse(y_val, lr.predict(X_val[["realfeel"]])) ** 0.5).round(2)
+
+print("Realfeel")
+print("R^2: " + str(r2))
+print("RMSE: " + str(rmse))
+
+print()
+
+r2 = r2_score(y_val, lr_h.predict(X_val[["humidity"]])).round(2)
+rmse = (mse(y_val, lr_h.predict(X_val[["humidity"]])) ** 0.5).round(2)
+
+print("humidity")
+print("R^2: " + str(r2))
+print("RMSE: " + str(rmse))
+###05_ex17_switch_md
+...oh, its even worse for both models! Due to a negative $R^2$, we would have been better off estimating the mean value!
+###05_ex17_end
+
+###05_ex18_start_py
+scores = cross_validate(LinearRegression(), 
+                        X_train_full[["humidity"]], y_train_full, 
+                        cv=TimeSeriesSplit(n_splits= 7), 
+                        scoring = {"r2": make_scorer(r2_score), 
+                                   "RMSE": make_scorer(mse, **{"squared":False})},
+                        return_train_score=True)
+tidy_scores(scores)
+###05_ex18_end
+
+###05_ex19_start_py
+# instantiate model
+temp_hum_model = LinearRegression()
+
+print("Single Split")
+print()
+# fit model to training data
+temp_hum_model.fit(X_train[['humidity', 'realfeel']], y_train)
+
+print("Training")
+train_r2 = r2_score(y_train, temp_hum_model.predict(X_train[['humidity', 'realfeel']])).round(2)
+train_rmse = (mse(y_train, temp_hum_model.predict(X_train[['humidity', 'realfeel']])) ** 0.5).round(2)
+print("R^2: " + str(train_r2))
+print("RMSE: " + str(train_rmse))
+print()
+print("Validation")
+val_r2 = r2_score(y_val, temp_hum_model.predict(X_val[['humidity', 'realfeel']])).round(2)
+val_rmse = (mse(y_val, temp_hum_model.predict(X_val[['humidity', 'realfeel']])) ** 0.5).round(2)
+print("R^2: " + str(val_r2))
+print("RMSE: " + str(val_rmse))
+
+print()
+print("Cross-validation")
+scores = cross_validate(temp_hum_model, X_train_full[['humidity', 'realfeel']], y_train_full, 
+                        cv=TimeSeriesSplit(n_splits= 7), 
+                        return_train_score=True)
+display(tidy_scores(scores))
+###05_ex19_switch_md
+So using `realfeel` and `humidity` together provides a better model than just using `realfeel` or `humidity` alone.
+###05_ex19_end
+
+###05_ex20_start_md
+So from above it seems generally there are fewer riders between 1am and 5am, with this starting to pick up around the morning, reducing during working hours, picking back up around 5pm, and then dropping throughout the evening. 
+
+Hopefully you note that this is a similar pattern to the figure we created before to look at average number of riders thoughout the day.
+###05_ex20_end
+
+###05_ex21_start_py
+def extract_hour(dt):
+    return dt.hour
+
+def extract_month(dt):
+    return dt.month
+
+def create_time_feats(data):
+    data_ = data.copy()
+    data_['hour'] = data_.index.map(extract_hour)
+    data_['month'] = data_.index.map(extract_month)
+    return data_
+
+# make compatible with a scikit-learn pipeline
+time_feat_func = FunctionTransformer(func=create_time_feats,    # our custom function
+                                     validate=False)           # prevents input being changed to numpy arrays
+
+times_onehot = ColumnTransformer(
+    # apply the `OneHotEncoder` to the hour column
+    [("OHE", OneHotEncoder(drop="first"), ["hour", "month"])],
+    # don't touch all other columns, instead concatenate it on the end of the
+    # changed data.
+    remainder="passthrough"
+) 
+
+lin_time_pipe = Pipeline([
+    ("create_hour", time_feat_func),
+    ("encode_hr", times_onehot),
+    ("model", LinearRegression())
+])
+
+scores = cross_validate(lin_time_pipe, 
+                        X_train_full[['humidity', "realfeel"]], y_train_full, 
+                        cv=TimeSeriesSplit(n_splits= 7), 
+                        scoring = {"r2": make_scorer(r2_score), 
+                                   "RMSE": make_scorer(mse, **{"squared":False})},
+                        return_train_score=True)
+tidy_scores(scores)
+###05_ex21_switch_md
+Adding "month" doesn't particularly help and may even make the model worse. May be worth leaving this one out!
+###05_ex21_end
