@@ -13,7 +13,7 @@ __Plan__
 |  03 | Dimension Reduction                      |
 |  04 | Distance-Based Models                    |
 |  05 | Linear Regression                        |
-|  06 | Regularisation and Non-Linear Regression |
+|  06 | Non-Linear Regression and Regularisation |
 |  07 | "Classical" Classification               |
 |  08 | Ensemble Classification                  |
 |  09 | Neural Networks pt.1                     |
