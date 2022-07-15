@@ -18,8 +18,9 @@ __Plan__
 |  08 | Ensemble Classification                  |
 |  09 | Neural Networks pt.1                     |
 |  10 | Neural Networks pt.2                     |
-|  11 | Time Series                              |
-|  12 | Ethics                                   |
+|  11 | Natural Language Processing              |
+|  12 | Time Series                              |
+|  13 | Ethics                                   |
 
 __TODO__
 - change the "Classical" Classification to account for an additional regression notebook
