@@ -429,4 +429,12 @@ def lasso_coef_alpha_plot(X_train, X_val, y_train, y_val):
 
     sns.lineplot(x='alpha', y='value', hue='variable', data=res).set_title("Coefficients")
     plt.show()
+
+
+def clean_ufos(ufo):
+    import pandas as pd
+    ufo.Time = pd.to_datetime(ufo.Time, format='%m/%d/%Y %H:%M')
+    ufo.set_index('Time', inplace=True)
+    
+    return ufo
     
