@@ -17,3 +17,4 @@ tqdm==4.56 # a progress bar library
 wheel # built-package format for pip
 widgetsnbextension==3.5 # interactive HTML widgets for Jupyter notebooks
 mlxtend==0.19 # for plotting decision regions
+pycountry==22.3.5 # for country codes

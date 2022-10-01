@@ -437,4 +437,69 @@ def clean_ufos(ufo):
     ufo.set_index('Time', inplace=True)
     
     return ufo
+
+
+def tidy_eu_planes(data):
+    import pycountry
+    import pandas as pd
+    from re import match
+
+    # ------------
+    # TIDY COLUMNS
+    # ------------
+
+    # rename columns
+    airlines = data.rename({
+        "geo\\time":"country",
+        "tra_meas":"measurement",
+        "tra_cov": "coverage"
+    }, axis="columns").copy()
+
+    non_date_cols = list(airlines.columns[0:5])
+
+    # remove the space in column names
+    airlines.columns = airlines.columns.str.replace(' ', '')
+
+    # just get the month columns
+    filtered_values = list(filter(lambda v: match('\d+M\d+', v), airlines.columns))
+
+    # reduce columns down to years with months
+    airlines = airlines[non_date_cols+filtered_values]
+
+    # make a date column
+    airlines = pd.melt(airlines,
+                       id_vars=non_date_cols,
+                       var_name="date",
+                       value_name='vals') 
+
+    # ---------
+    # TIDY DATA
+    # ---------
+
+    # replace the 'M' with a dash
+    airlines.date = airlines.date.str.replace('M', '-')
+
+    # change to a datetime
+    airlines.date = pd.to_datetime(airlines.date, format='%Y-%m')
+
+    #set the date as the index
+    airlines.set_index('date', inplace=True)
+
+    # get a dictionary with the codes and the country name
+    country_dict = {}
+    for country in airlines["country"].unique():
+        try:
+            country_dict[country] = pycountry.countries.lookup(country).name
+        except:
+            pass
+
+    # use the dictionary to replace the codes
+    airlines.country = airlines.country.replace(country_dict)
+    # change ":" to nan
+    airlines = airlines.replace(": ", np.nan)
+
+    # change the values to float
+    airlines.vals = airlines.vals.astype("float", errors='ignore')
+
+    return airlines
     
