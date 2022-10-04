@@ -439,7 +439,7 @@ def clean_ufos(ufo):
     return ufo
 
 
-def tidy_eu_planes(data):
+def tidy_eu_passengers(data):
     import pycountry
     import pandas as pd
     from re import match
@@ -500,6 +500,9 @@ def tidy_eu_planes(data):
 
     # change the values to float
     airlines.vals = airlines.vals.astype("float", errors='ignore')
+
+    # sort earliest to most recent
+    airlines.sort_index(inplace=True)
 
     return airlines
     
