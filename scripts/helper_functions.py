@@ -506,3 +506,34 @@ def tidy_eu_passengers(data):
 
     return airlines
     
+
+def plot_example_digits(x,y):
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # set random seed (change to see different examples)
+    np.random.seed(seed=42)
+
+    fig, ax = plt.subplots(1, 10, figsize=(15, 2))
+
+    # find the unique digits
+    unique_digits = np.unique(y)
+
+    # for each unique digit...
+    for digit in unique_digits:
+        # find the indices for different digits
+        idxs = np.where(y==digit)[0]
+        # randomly select an index
+        idx = np.random.choice(idxs)
+        # plot the example image
+        ax[digit].imshow(x.loc[idx].values.reshape(8, 8), 
+                         cmap='gray', interpolation="bilinear")
+        # set the subplot title as the digit
+        ax[digit].set_title(digit)
+        # tidy the grid up
+        ax[digit].grid(False)
+        ax[digit].set_xticks([])
+        ax[digit].set_yticks([])
+
+    plt.suptitle("Digit Examples")
+    plt.show()
