@@ -537,3 +537,132 @@ def plot_example_digits(x,y):
 
     plt.suptitle("Digit Examples")
     plt.show()
+
+def plot_2d_clusters(x, y, ax): 
+    import matplotlib.cm as cm
+    import pandas as pd
+
+    ax.set_xlim(x.min()['x'], x.max()['x'])
+    ax.set_ylim(x.min()['y'], x.max()['y'])
+    
+    y_uniques = pd.Series(y).unique()
+    colors = cm.tab10(np.linspace(0, 1, len(y_uniques)))
+    for y_unique_item, c in zip(y_uniques, colors):
+        x[ y == y_unique_item ].plot(
+            title=f'{len(y_uniques)} Clusters', 
+            kind='scatter', 
+            x='x', y='y',
+            marker=f'${y_unique_item}$', 
+            ax=ax, c=[c], s=40)
+
+def k_centeroids_vis(title, data, k_max, centres=False, legend=False):
+    import pandas as pd
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    from sklearn.cluster import KMeans
+
+    for k in list(range(1, k_max+1)):
+        kclust = data.copy()
+        km = KMeans(n_clusters=k, random_state=1).fit(kclust)
+        kclust['cluster'] = km.fit_predict(kclust)
+        kclust['k']=k
+        
+        centeroids = pd.DataFrame(km.cluster_centers_, columns=['c1', 'c2'])
+        centeroids.index.name = 'cluster'
+        centeroids['k'] =k
+        centeroids = centeroids.reset_index()
+
+        if k==1:
+            allkclust = kclust
+            allcenteroids = centeroids
+        else:
+            allkclust = pd.concat([allkclust, kclust], axis=0)
+            allcenteroids = pd.concat([allcenteroids,centeroids])
+
+    fig = sns.FacetGrid(allkclust.merge(allcenteroids), col='k', hue='cluster', col_wrap=3, height=4, aspect=1)
+
+    if centres:
+        fig.map(sns.scatterplot, 'c1', 'c2', alpha=0.9, marker='o', s=40, linewidths=8,
+                color='w', zorder=10, legend=False)
+        fig.map(sns.scatterplot, 'c1', 'c2', marker='x', s=20, linewidths=20,
+                        color='k', zorder=11, alpha=1, legend=False)
+    fig.map(sns.scatterplot, 'x', 'y', alpha=0.6, s=5)
+
+    if legend:
+        fig.add_legend()
+    
+    plt.subplots_adjust(top=0.95)
+    fig.fig.suptitle(title)    
+    plt.show()
+
+
+def k_means_ani(data, n_clusters=3, init = "random", n_init = 1,
+                max_iter=15, random_state=1, title=None, 
+                embed_limit=30000000.0):
+    import pandas as pd
+    import numpy as np
+    import matplotlib
+    import matplotlib.pyplot as plt
+    from sklearn.cluster import KMeans
+    from matplotlib import animation, rc
+    matplotlib.rcParams['animation.embed_limit'] = embed_limit
+    
+    kclust = data.copy()
+    
+    def update_plot(i, models, scat1, scat2, scat3):
+        if models[int(i/2)]==None:
+            # set 1 standard color
+            scat1.set_array(np.array([0]*len(kclust)))
+            # makes sure the x's are not plotted
+            empty_np = np.empty(models[-1].cluster_centers_.shape)
+            empty_np[:]=np.NaN
+            scat2.set_offsets(empty_np)
+            scat3.set_offsets(empty_np)
+        else:
+            if (i % 2) == 0:
+                # changes position
+                scat2.set_offsets(models[int(i/2)].cluster_centers_)
+                scat3.set_offsets(models[int(i/2)].cluster_centers_)
+            else:
+                # changes color
+                scat1.set_array(models[int(i/2)].predict(kclust))
+
+        return scat3,
+    
+    k_iters = []
+    for init_seed in range(n_init):
+        # just adds a break between starting with new centeroids
+        [k_iters.append(None) for i in range(2)]
+
+        for i in range(1,max_iter+1):
+            km = KMeans(n_clusters=10,     # Pick a number of clusters
+                        init=init,        # The initial centroids are randomly chosen as one of the data rows
+                        n_init=1,         # Number of times the algorithm runs with different centroid seeds
+                        algorithm="full", # Classic "Expectation Maximization" algorithm
+                        max_iter=i,       # EXPLAIN
+                        random_state=random_state+init_seed)
+            k_iters.append(km.fit(kclust))
+
+    numpoints = len(kclust)
+    colors = k_iters[-1].predict(kclust)
+
+    fig = plt.figure()
+
+    scat1 = plt.scatter(kclust['x'], kclust['y'], c=colors, cmap=plt.cm.tab10, 
+                      alpha=0.7)
+    scat2 = plt.scatter([],[],
+                      alpha=0.9, marker='o', s=40, linewidths=8,
+                      color='w')
+    scat3 = plt.scatter([],[],
+                      marker='x', s=5, linewidths=10, c='k')
+    ani = animation.FuncAnimation(fig, update_plot, 
+                                  frames=range(len(k_iters)*2),
+                                  fargs=(k_iters, scat1, scat2, scat3),
+                                  interval=100)
+
+    if title:
+        plt.title(title)
+    plt.close()
+    # Note: below is the part which makes it work on Colab
+    rc('animation', html='jshtml')
+    return ani
