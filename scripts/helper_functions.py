@@ -538,7 +538,7 @@ def plot_example_digits(x,y):
     plt.suptitle("Digit Examples")
     plt.show()
 
-def plot_2d_clusters(x, y, ax): 
+def plot_2d_clusters(x, y, ax, title=""): 
     import matplotlib.cm as cm
     import pandas as pd
 
@@ -549,7 +549,7 @@ def plot_2d_clusters(x, y, ax):
     colors = cm.tab10(np.linspace(0, 1, len(y_uniques)))
     for y_unique_item, c in zip(y_uniques, colors):
         x[ y == y_unique_item ].plot(
-            title=f'{len(y_uniques)} Clusters', 
+            title=title, 
             kind='scatter', 
             x='x', y='y',
             marker=f'${y_unique_item}$', 
@@ -597,7 +597,7 @@ def k_centeroids_vis(title, data, k_max, centres=False, legend=False):
 
 
 def k_means_ani(data, n_clusters=3, init = "random", n_init = 1,
-                max_iter=15, random_state=1, title=None, 
+                max_iter=20, random_state=1, title=None, 
                 embed_limit=30000000.0):
     import pandas as pd
     import numpy as np
@@ -666,3 +666,155 @@ def k_means_ani(data, n_clusters=3, init = "random", n_init = 1,
     # Note: below is the part which makes it work on Colab
     rc('animation', html='jshtml')
     return ani
+
+def init_repeated_plot(data, max_iter=20, title = ""):
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from sklearn.cluster import KMeans
+
+    inertias = []
+    
+    repeats = 12
+    
+    for k in range(1,repeats+1):
+        km = KMeans(
+            n_clusters=10,
+            init="random",
+            n_init=1,
+            algorithm="full",
+            max_iter=max_iter,
+            random_state=k)
+
+        kclust = data.copy()
+        kclust['cluster'] = km.fit_predict(kclust)
+        kclust['k']=k
+        
+        inertias.append(round(km.inertia_, 2))
+
+        centeroids = pd.DataFrame(km.cluster_centers_, columns=['c1', 'c2'])
+        centeroids.index.name = 'cluster'
+        centeroids['k'] =k
+        centeroids = centeroids.reset_index()
+
+        if k==1:
+          allkclust = kclust
+          allcenteroids = centeroids
+        else:
+          allkclust = pd.concat([allkclust, kclust], axis=0)
+          allcenteroids = pd.concat([allcenteroids,centeroids])
+
+    fig = sns.FacetGrid(allkclust.merge(allcenteroids), col='k', hue='cluster', col_wrap=3, height=4, aspect=1)
+
+    fig.map(sns.scatterplot, 'c1', 'c2', alpha=0.9, marker='o', s=40, linewidths=8,
+            color='w', zorder=10, legend=False)
+    fig.map(sns.scatterplot, 'c1', 'c2', marker='x', s=20, linewidths=20,
+                    color='k', zorder=11, alpha=1, legend=False)
+    fig.map(sns.scatterplot, 'x', 'y', alpha=0.6, legend=False)
+
+    axes = fig.axes.flatten()
+    
+    for k in range(repeats):
+        if inertias[k] == min(inertias):
+            axes[k].set_title("init = "+ str(k+1) + "; SSE = "+str(inertias[k]), fontweight='bold')
+        else:
+            axes[k].set_title("init = "+ str(k+1) + "; SSE = "+str(inertias[k]))
+
+    #fig.add_legend()
+    plt.subplots_adjust(top=0.95)
+    fig.fig.suptitle(title)  
+    plt.show()
+
+# From https://github.com/ageron/handson-ml2/blob/master/09_unsupervised_learning.ipynb
+def mini_batch_img(fig_path):
+    import urllib
+    from sklearn.datasets import fetch_openml
+    from sklearn.model_selection import train_test_split
+    from sklearn.cluster import MiniBatchKMeans
+    from sklearn.datasets import load_iris
+    from timeit import timeit
+    from sklearn.datasets import make_blobs
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import os
+
+    np.random.seed(42)
+    # this is quite computationally expensive
+    if not os.path.exists(fig_path):
+
+        blob_centers = np.array(
+            [[ 0.2,  2.3],
+             [-1.5 ,  2.3],
+             [-2.8,  1.8],
+             [-2.8,  2.8],
+             [-2.8,  1.3]])
+        blob_std = np.array([0.4, 0.3, 0.1, 0.1, 0.1])
+
+        X, y = make_blobs(n_samples=2000, centers=blob_centers,
+                          cluster_std=blob_std, random_state=7)
+
+        def load_next_batch(batch_size):
+            return X[np.random.choice(len(X), batch_size, replace=False)]
+
+        k = 5
+        n_init = 10
+        n_iterations = 100
+        batch_size = 100
+        init_size = 500  # more data for K-Means++ initialization
+        evaluate_on_last_n_iters = 10
+
+        best_kmeans = None
+
+        for init in range(n_init):
+            minibatch_kmeans = MiniBatchKMeans(n_clusters=k, init_size=init_size)
+            X_init = load_next_batch(init_size)
+            minibatch_kmeans.partial_fit(X_init)
+
+            minibatch_kmeans.sum_inertia_ = 0
+            for iteration in range(n_iterations):
+                X_batch = load_next_batch(batch_size)
+                minibatch_kmeans.partial_fit(X_batch)
+                if iteration >= n_iterations - evaluate_on_last_n_iters:
+                    minibatch_kmeans.sum_inertia_ += minibatch_kmeans.inertia_
+
+            if (best_kmeans is None or
+                minibatch_kmeans.sum_inertia_ < best_kmeans.sum_inertia_):
+                best_kmeans = minibatch_kmeans
+
+
+        times = np.empty((100, 2))
+        inertias = np.empty((100, 2))
+        for k in range(1, 101):
+            kmeans_ = KMeans(n_clusters=k, random_state=42)
+            minibatch_kmeans = MiniBatchKMeans(n_clusters=k, random_state=42)
+            print("\r{}/{}".format(k, 100), end="")
+            times[k-1, 0] = timeit("kmeans_.fit(X)", number=10, globals=globals())
+            times[k-1, 1]  = timeit("minibatch_kmeans.fit(X)", number=10, globals=globals())
+            inertias[k-1, 0] = kmeans_.inertia_
+            inertias[k-1, 1] = minibatch_kmeans.inertia_
+
+    # this is quite computationally expensive
+    if not os.path.exists(fig_path):
+        plt.figure(figsize=(10,4))
+
+        plt.subplot(121)
+        plt.plot(range(1, 101), inertias[:, 0], "r--", label="K-Means")
+        plt.plot(range(1, 101), inertias[:, 1], "b.-", label="Mini-batch K-Means")
+        plt.xlabel("$k$", fontsize=16)
+        plt.title("Inertia", fontsize=14)
+        plt.legend(fontsize=14)
+        plt.axis([1, 100, 0, 100])
+
+        plt.subplot(122)
+        plt.plot(range(1, 101), times[:, 0], "r--", label="K-Means")
+        plt.plot(range(1, 101), times[:, 1], "b.-", label="Mini-batch K-Means")
+        plt.xlabel("$k$", fontsize=16)
+        plt.title("Training time (seconds)", fontsize=14)
+        plt.axis([1, 100, 0, 6])
+
+        plt.savefig(fig_path)
+        plt.show()
+
+    else:
+        display(Image(fig_path))
