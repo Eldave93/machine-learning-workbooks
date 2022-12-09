@@ -738,6 +738,7 @@ def mini_batch_img(fig_path):
     import numpy as np
     import matplotlib.pyplot as plt
     import os
+    from IPython.display import Image
 
     np.random.seed(42)
     # this is quite computationally expensive
