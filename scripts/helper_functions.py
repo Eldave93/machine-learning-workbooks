@@ -560,6 +560,65 @@ def tidy_eu_passengers(data):
     airlines.sort_index(inplace=True)
 
     return airlines
+
+def tidy_eu_rail_passengers(data):
+    import pycountry
+    import pandas as pd
+    from re import match
+
+    # ------------
+    # TIDY COLUMNS
+    # ------------
+
+    # rename columns
+    rail = data.rename({
+        "geo\\time":"country",
+    }, axis="columns").copy()
+
+    non_date_cols = list(rail.columns[0:2])
+
+    # remove the space in column names
+    rail.columns = rail.columns.str.replace(' ', '')
+
+    # make a date column
+    rail = pd.melt(rail,
+                   id_vars=non_date_cols,
+                   var_name="date",
+                   value_name='vals') 
+
+    # ---------
+    # TIDY DATA
+    # ---------
+    # format quaters using regex
+    rail['date'] = rail['date'].str.replace(r'(\d+)(Q\d)', r'\1-\2', regex =True)
+    # turn the quaters into dates
+    rail['date'] = pd.PeriodIndex(rail['date'], freq='Q').to_timestamp()
+    
+    #set the date as the index
+    rail.set_index('date', inplace=True)
+
+    # get a dictionary with the codes and the country name
+    country_dict = {}
+    for country in rail["country"].unique():
+        try:
+            country_dict[country] = pycountry.countries.lookup(country).name
+        except:
+            pass
+
+    # use the dictionary to replace the codes
+    rail.country = rail.country.replace(country_dict)
+    # change ":" to nan
+    rail = rail.replace([": ", ": c", ":"], np.nan)
+    # remove all spaces in values
+    rail.vals = rail.vals.str.strip()
+
+    # change the values to float
+    rail.vals = rail.vals.astype("float")
+
+    # sort earliest to most recent
+    rail.sort_index(inplace=True)
+
+    return rail
     
 
 def plot_example_digits(x,y):
