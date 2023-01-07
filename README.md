@@ -10,7 +10,7 @@ __Plan__
 |----------|------------------------------------------|-------|
 |  01      | End-to-End                               | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Eldave93/machine-learning-workbooks/blob/main/01-end_to_end/01_workbook.ipynb) |
 |  02      | Data and Features                        | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Eldave93/machine-learning-workbooks/blob/main/02-data/02_workbook.ipynb) |
-|  03      | Dimension Reduction                      |
+|  03      | Dimension Reduction                      | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Eldave93/machine-learning-workbooks/blob/main/03-dimension-reduction/03_workbook.ipynb) |
 |  04      | Distance-Based Models                    | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Eldave93/machine-learning-workbooks/blob/main/04-distance-based-models/04_workbook.ipynb) |
 |  05      | Linear Regression                        | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Eldave93/machine-learning-workbooks/blob/main/05-regression/05_workbook.ipynb) |
 |  06      | Non-Linear Regression and Regularisation | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Eldave93/machine-learning-workbooks/blob/main/06-non-linear_regression_and_regularisation/06_workbook.ipynb) |
