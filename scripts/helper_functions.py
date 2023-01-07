@@ -933,3 +933,96 @@ def mini_batch_img(fig_path):
 
     else:
         display(Image(fig_path))
+
+
+def process_lending(X_train, drop_list, feature_names = ["dti", "open_acc", 'pub_rec', 'pub_rec_bankruptcies',
+                                                  'annual_inc', 'revol_bal', 'earliest_cr_line', "int_rate", 
+                                                  "revol_util", "term"]):
+    from sklearn.preprocessing import MinMaxScaler
+    import scipy
+    import warnings
+    from sklearn.preprocessing import FunctionTransformer
+    from feature_engine.imputation import MeanMedianImputer
+    from feature_engine.outliers import ArbitraryOutlierCapper
+    from sklearn.pipeline import Pipeline, make_pipeline
+    import numpy as np
+    import pandas as pd
+    from sklearn.compose import ColumnTransformer
+    from sklearn.preprocessing import FunctionTransformer
+
+    # adding a single entry into warnings filter
+    warnings.simplefilter('error', UserWarning)
+
+    def DfTransformer(X, column_names = None):
+        X_ = X.copy() # so we do not alter the input data
+
+        # turn to a pandas df if a numpy array
+        if isinstance(X_, (np.ndarray, np.generic)):
+            X_ = pd.DataFrame(X_, columns = column_names)
+
+        # turn to a pandas df if sparse
+        elif scipy.sparse.issparse(X_):
+            X_ = pd.DataFrame.sparse.from_spmatrix(X_, columns = column_names)
+
+        # change the column names if provided and not the same
+        elif isinstance(X_, pd.DataFrame):
+            if not column_names==None and set(list(X_.columns)) == set(column_names):
+                X_.columns = column_names
+
+        else:
+            warnings.warn("""{} not a supported input. Input needs to be in:
+            [np.ndarray, np.generic, scipy.sparse, pd.DataFrame]""".format(type(X_)))
+
+        return X_
+
+    def to_year(series):
+        series = pd.to_datetime(series).dt.year
+        return series.values.reshape(-1,1)
+
+    def rm_perc(x):
+        if isinstance(x, pd.Series):
+            series = x.str.replace(r'%', '').astype(float)
+            return series.values.reshape(-1,1)
+
+        elif isinstance(x, pd.DataFrame):
+            df = x.apply(lambda x_: x_.str.replace(r'%', '').astype(float))
+            return df
+
+        else:
+            print("Input needs to be a Series or DataFrame")
+
+    def rem_str(series):
+        term_values = {' 36 months': 36, ' 60 months': 60}
+        series = series.map(term_values)
+        return series.values.reshape(-1,1)
+    
+    pre_processing = [
+        # for each feature do the following....
+        ("feature_transformation", ColumnTransformer([
+            # ...nothing.
+            ("passthrough", "passthrough", ["dti", "open_acc", 'pub_rec', 'pub_rec_bankruptcies']),
+            # ...remove from the data.
+            ("drop", "drop", drop_list),
+            # ...log transform.
+            ("log_tf", FunctionTransformer(np.log1p), ['annual_inc', 'revol_bal']),
+            # ...remove the month.
+            ("remove_month", FunctionTransformer(to_year), "earliest_cr_line"),
+            # ...remove the "%" symbol.
+            ("remove_percent", FunctionTransformer(rm_perc), ["int_rate", "revol_util"]),
+            # ... remove the string "months".
+            ("remove_str", FunctionTransformer(rem_str), 'term')
+        ])),
+        # tranform back to a dataframe
+        ("DT_transform", FunctionTransformer(DfTransformer, kw_args = {"column_names":feature_names})),    
+        # impute the median value for missing values for all features
+        ("imputer", MeanMedianImputer(imputation_method='median')),
+        # As the input needs to be a df we'll apply the capper just to dti here
+        ("outlier", ArbitraryOutlierCapper(max_capping_dict={'dti': 42})),
+        # normalize all the features
+        ("normalization", MinMaxScaler())
+    ]
+
+    X_train_ = Pipeline(pre_processing).fit_transform(X_train)
+    X_train_processed = pd.DataFrame(X_train_, columns = feature_names)
+
+    return X_train_processed
