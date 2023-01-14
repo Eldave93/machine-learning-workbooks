@@ -935,6 +935,69 @@ def mini_batch_img(fig_path):
         display(Image(fig_path))
 
 
+def DfTransformer(X, column_names = None):
+    import pandas as pd
+    import scipy
+    import warnings
+
+    X_ = X.copy() # so we do not alter the input data
+
+    # turn to a pandas df if a numpy array
+    if isinstance(X_, (np.ndarray, np.generic)):
+        X_ = pd.DataFrame(X_, columns = column_names)
+
+    # turn to a pandas df if sparse
+    elif scipy.sparse.issparse(X_):
+        X_ = pd.DataFrame.sparse.from_spmatrix(X_, columns = column_names)
+
+    # change the column names if provided and not the same
+    elif isinstance(X_, pd.DataFrame):
+        if not column_names==None and set(list(X_.columns)) == set(column_names):
+            X_.columns = column_names
+
+    else:
+        warnings.warn("""{} not a supported input. Input needs to be in:
+        [np.ndarray, np.generic, scipy.sparse, pd.DataFrame]""".format(type(X_)))
+
+    return X_
+
+def to_year(series):
+    import pandas as pd
+
+    series = pd.to_datetime(series).dt.year
+    return series.values.reshape(-1,1)
+
+def rm_perc(x):
+    import pandas as pd
+
+    if isinstance(x, pd.Series):
+        series = x.str.replace(r'%', '').astype(float)
+        return series.values.reshape(-1,1)
+
+    elif isinstance(x, pd.DataFrame):
+        df = x.apply(lambda x_: x_.str.replace(r'%', '').astype(float))
+        return df
+
+    else:
+        print("Input needs to be a Series or DataFrame")
+
+def rem_str(series):
+    term_values = {' 36 months': 36, ' 60 months': 60}
+    series = series.map(term_values)
+    return series.values.reshape(-1,1)
+
+def emp_len_ext(series):
+    import pandas as pd
+    series = series.str.extract(r"(\d+)")
+    series = pd.to_numeric(series[0])
+    return series.values.reshape(-1,1)
+
+def change_cat(series):
+    term_values = {"MORTGAGE": "MORTGAGE", "RENT":"RENT", "OWN":"OWN", 'ANY': "OTHER", 'NONE': "OTHER"}
+    series = series.map(term_values)
+    return series.values.reshape(-1,1)
+
+
 def process_lending(X_train, drop_list, feature_names = ["dti", "open_acc", 'pub_rec', 'pub_rec_bankruptcies',
                                                   'annual_inc', 'revol_bal', 'earliest_cr_line', "int_rate", 
                                                   "revol_util", "term"]):
