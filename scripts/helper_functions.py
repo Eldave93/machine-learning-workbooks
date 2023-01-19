@@ -1089,3 +1089,208 @@ def process_lending(X_train, drop_list, feature_names = ["dti", "open_acc", 'pub
     X_train_processed = pd.DataFrame(X_train_, columns = feature_names)
 
     return X_train_processed
+
+def load_covid(UPDATE=False):
+    import pandas as pd
+    import os
+    import re
+
+    if UPDATE == True:
+        # get the latest covid-19 UK data 
+        covid_eng = pd.read_csv("https://coronavirus.data.gov.uk/api/v1/data?filters=areaType=nation;areaName=England&structure=%7B%22areaType%22:%22areaType%22,%22areaName%22:%22areaName%22,%22areaCode%22:%22areaCode%22,%22date%22:%22date%22,%22newCasesBySpecimenDate%22:%22newCasesBySpecimenDate%22,%22cumCasesBySpecimenDate%22:%22cumCasesBySpecimenDate%22,%22newFirstEpisodesBySpecimenDate%22:%22newFirstEpisodesBySpecimenDate%22,%22cumFirstEpisodesBySpecimenDate%22:%22cumFirstEpisodesBySpecimenDate%22,%22newReinfectionsBySpecimenDate%22:%22newReinfectionsBySpecimenDate%22,%22cumReinfectionsBySpecimenDate%22:%22cumReinfectionsBySpecimenDate%22%7D&format=csv")
+        # save to csv
+        covid_eng.to_csv("./Data/covid_rates_"+str(date.today())+".csv", index=False)
+
+    # get a list of the data files
+    onlyfiles = [f for f in os.listdir("Data") if os.path.isfile(os.path.join("Data", f))]
+    # only get the covid data
+    covidlist = list(filter(re.compile("covid_rates_*").match, onlyfiles))
+    # load the latest data
+    covid_eng = pd.read_csv("./Data/"+covidlist[-1])
+    
+    return covid_eng
+
+def covid_prep(data):
+    import pandas as pd
+    
+    # reduce data down
+    covid = data[["date", "newCasesBySpecimenDate"]].copy()
+    # change name of column
+    covid.rename(mapper={"newCasesBySpecimenDate": "new_cases"},axis='columns', inplace=True)
+    # change to datetime
+    covid.date = pd.to_datetime(covid.date, format='%Y-%m-%d')
+    # sort earliest to most recent
+    covid = covid.sort_values(by='date')
+    # Set the date to the index 
+    covid = covid.set_index('date')
+    
+    return covid
+
+def load_airline_passengers(UPDATE = False):
+
+    import requests
+    import pandas as pd
+    import os
+    import re
+
+    if UPDATE:
+        url = "https://ec.europa.eu/eurostat/estat-navtree-portlet-prod/BulkDownloadListing?file=data/avia_paoc.tsv.gz"
+        filename = "./Data/"+url.split("/")[-1]
+        with open(filename, "wb") as f:
+            r = requests.get(url)
+            f.write(r.content)
+        df = pd.read_csv(filename, compression='gzip', delimiter="\t|,", engine='python')
+        # save to csv
+        df.to_csv("./Data/passengerOverviewCountry_"+str(date.today())+".csv", index=False)
+
+    # get a list of the data files
+    onlyfiles = [f for f in os.listdir("Data") if os.path.isfile(os.path.join("Data", f))]
+    # only get the airlines data
+    passCountlist = list(filter(re.compile("passengerOverviewCountry_*").match, onlyfiles))
+    # load the latest data
+    pass_raw = pd.read_csv("./Data/"+passCountlist[-1])
+    
+    return pass_raw
+
+def load_railway_passengers(UPDATE = False):
+    import requests
+    import pandas as pd
+    import os
+    import re
+
+    if UPDATE:
+        url = "https://ec.europa.eu/eurostat/estat-navtree-portlet-prod/BulkDownloadListing?file=data/rail_pa_quartal.tsv.gz"
+        filename = "./Data/"+url.split("/")[-1]
+        with open(filename, "wb") as f:
+            r = requests.get(url)
+            f.write(r.content)
+        df = pd.read_csv(filename, compression='gzip', delimiter="\t|,", engine='python')
+        # save to csv
+        df.to_csv("./Data/railPassengerOverviewCountry_"+str(date.today())+".csv", index=False)
+
+    # get a list of the data files
+    onlyfiles = [f for f in os.listdir("Data") if os.path.isfile(os.path.join("Data", f))]
+    # only get the airlines data
+    railPassCountlist = list(filter(re.compile("railPassengerOverviewCountry_*").match, onlyfiles))
+    # load the latest data
+    railpass_raw = pd.read_csv("./Data/"+railPassCountlist[-1])
+    
+    return railpass_raw
+
+def get_auto_flight_pass_model(train, country_code, trace = False, update = False):
+    import pmdarima as pm
+    import os
+    import pickle
+    
+    modelPath = os.path.join(os.path.curdir,"Model", country_code+"_sarima.pkl")
+    
+    if update or not os.path.exists(modelPath):
+        
+        autoarima_model = pm.auto_arima(np.log(train),
+                                        trace=trace,  # prints the search for optimal parameters
+                                        seasonal=True,  # whether our dataset displays seasonality or not
+                                        m=12,  # number of observations per seasonal cycle (i.e. seasonality)
+                                        d = 1, # The order of first-differencing
+                                        random_state = 42 # ensures replicable results
+                                       )
+        # Serialize with Pickle
+        with open(modelPath, 'wb') as pkl:
+            pickle.dump(autoarima_model, pkl)
+    else:
+        # Now read it back and make a prediction
+        with open(modelPath, 'rb') as pkl:
+            autoarima_model = pickle.load(pkl)
+            
+    return autoarima_model
+
+def plot_forecasts(model, train, test, country_code, update = False):
+    # Note: Training Predictions for the flights data looks weird so I remove them
+    import os
+    from sklearn.metrics import mean_squared_error
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from IPython.display import Image
+    
+    imgPath = os.path.join(os.path.curdir, "Figures", country_code+"_sarima.png")
+    
+    if update or not os.path.exists(imgPath):
+    
+        fig, axes = plt.subplots(2, 1, figsize=(12, 8))
+
+        # predicting the training data
+        #train_forecast, train_conf_int = model.predict_in_sample(return_conf_int=True)
+        # predicting the test data
+        test_forecast, test_conf_int = model.predict(n_periods=len(test), return_conf_int=True)
+
+        # update the model with the test data
+        model.update(np.log(test))
+        forecast_period = pd.date_range(start=test.index[-1] + pd.DateOffset(months=1),
+                                        periods=24,
+                                        freq="MS")
+        # predicting the same number of points as our forecast_period defined above
+        future_forecast, future_conf_int = model.predict(n_periods=len(forecast_period),
+                                                                   return_conf_int=True)
+
+        # add the index to the forecast in a pandas series
+        future_forecast = pd.Series(future_forecast, index = forecast_period)
+
+        title_dict = {#0: "Training Predictions",
+                      0: "Test set Predictions",
+                      1: "Future Forecast"
+                     }
+
+        for i, (forecast, conf_int) in enumerate([#(train_forecast, train_conf_int), 
+                                                (test_forecast, test_conf_int),
+                                                (future_forecast, future_conf_int),
+                                               ]):
+
+            # train plot
+            axes[i].plot(train, label='train')
+            axes[i].plot(test, label='test')
+            axes[i].plot(np.exp(forecast), label='predictions', linestyle="--")
+
+            # plot the confidence intervals on the forecasts
+            axes[i].fill_between(forecast.index, 
+                             np.exp(conf_int[:, 0]), 
+                             np.exp(conf_int[:, 1]), 
+                             color='k', 
+                             alpha=0.1,
+                             )
+
+            axes[i].set_title(title_dict[i], fontsize=10)
+
+        plt.legend(loc='best')
+
+        plt.suptitle(country_code + " Airport Passengers")
+
+        #train_rmse = np.sqrt(mean_squared_error(train, np.exp(train_forecast)))  # using np.exp() to cancel the log transformation
+        test_rmse = np.sqrt(mean_squared_error(test, np.exp(test_forecast)))  # using np.exp() to cancel the log transformation
+        #metrics_str = 'train RMSE: '+ str(train_rmse.round(2)) + '; test RMSE: ' + str(test_rmse.round(2))
+        metrics_str = 'test RMSE: ' + str(test_rmse.round(2))
+        axes[i].text(0.9,-0.2, metrics_str, size=12, ha="center", 
+                     transform=axes[i].transAxes)
+
+        fig.tight_layout()
+        
+        plt.savefig(imgPath)
+
+        plt.show()
+        
+    else:
+        display(Image(imgPath))
+
+def prep_flights_test_train(data):
+    import pandas as pd
+    
+    data_ = data
+    # set time
+    data_ = data_.loc['2003-01-01':'2019-12-01']
+    # set a frequency for the data
+    data_.index.freq = 'MS' # 'MS' = calendar month begin
+    # create training/test set
+    test_start = data_.index[-1]-pd.DateOffset(years=2)
+    train = data_.loc[:test_start]
+    test = data_.loc[test_start+pd.DateOffset(months=1):]
+    
+    return train, test
