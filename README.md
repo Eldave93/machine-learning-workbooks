@@ -16,7 +16,7 @@ __Plan__
 |  06      | Ensemble Classification                  | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Eldave93/machine-learning-workbooks/blob/main/06-ensemble-classification/06_workbook.ipynb)| 20% |
 |  07      | Dimension Reduction                      | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Eldave93/machine-learning-workbooks/blob/main/07-dimension-reduction/07_workbook.ipynb) | 10% |
 |  08      | Distance-Based Models                    | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Eldave93/machine-learning-workbooks/blob/main/08-distance-based-models/08_workbook.ipynb) | 50% |
-|  09      | Natural Language Processing              | | 5% | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Eldave93/machine-learning-workbooks/blob/main/09-nlp/09_workbook.ipynb) | 95% |
+|  09      | Natural Language Processing              | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Eldave93/machine-learning-workbooks/blob/main/09-nlp/09_workbook.ipynb) | 5% |
 |  10      | Time Series                              | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Eldave93/machine-learning-workbooks/blob/main/10-time-series/10_workbook.ipynb) | 95% |
 |  11      | Neural Networks pt.1                     | | 0% |
 |  12      | Neural Networks pt.2                     | | 0% |
